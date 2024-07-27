@@ -30,6 +30,7 @@ def upload_file(file_path):
         if response.status_code in [200, 201]:
             file_id = response.json().get('id')
             timestamp = response.headers.get('Date')
+            timestamp = datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %Z').isoformat()
             return file_id, timestamp
         else:
             raise Exception(f"Upload failed with status code {response.status_code}")
@@ -62,20 +63,28 @@ def update_json_file(file_id, timestamp):
         raise
 
 def keepalive():
-    #impliment json autocreate
     """Visit all files in the JSON file that haven't been visited in the last VISIT_INTERVAL days."""
     if not os.path.exists(JSON_FILE):
-        print(f"No {JSON_FILE} foundt")
+        print(f"No {JSON_FILE} found. Please upload a file first.")
         return
 
     with open(JSON_FILE, 'r') as f:
-        data = json.load(f)
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            print(f"JSON file {JSON_FILE} is empty or corrupted.")
+            return
 
     current_time = datetime.now()
     updated = False
 
     for file_id, last_visited in data.items():
-        last_visit_time = datetime.fromisoformat(last_visited)
+        try:
+            last_visit_time = datetime.fromisoformat(last_visited)
+        except ValueError:
+            # Handle non-ISO format by converting it
+            last_visit_time = datetime.strptime(last_visited, '%a, %d %b %Y %H:%M:%S %Z')
+        
         if current_time - last_visit_time >= timedelta(days=VISIT_INTERVAL):
             url = f"{PIXELDRAIN_VIEW_URL}/{file_id}/info"
             try:
@@ -85,19 +94,19 @@ def keepalive():
                     print(f"Successfully visited {url}")
                     updated = True
                 else:
-                    print(f"Failed to {url}. Status code: {response.status_code}")
+                    print(f"Failed to visit {url}. Status code: {response.status_code}")
             except requests.RequestException as e:
-                print(f"Error visit {url}: {str(e)}")
+                print(f"Error visiting {url}: {str(e)}")
         else:
-            #change to epoch 
             print(f"Skipped {file_id} (Last visit: {last_visited})")
 
     if updated:
         with open(JSON_FILE, 'w') as f:
             json.dump(data, f, indent=2)
+        print(f"Updated JSON file after keepalive: {JSON_FILE}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Enthnaro entho")
+    parser = argparse.ArgumentParser(description="Pixeldrain file uploader and keepalive script")
     parser.add_argument("--upload", help="Upload a file to Pixeldrain")
     parser.add_argument("--alive", action="store_true", help="Keep files alive by visiting them")
     args = parser.parse_args()
@@ -107,7 +116,6 @@ def main():
             file_id, timestamp = upload_file(args.upload)
             update_json_file(file_id, timestamp)
             print(f"File uploaded successfully. File ID: {file_id}")
-            #add link after upload
         except Exception as e:
             print(f"Error uploading file: {str(e)}")
     elif args.alive:
