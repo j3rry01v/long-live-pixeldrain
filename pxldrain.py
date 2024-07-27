@@ -30,6 +30,7 @@ def upload_file(file_path):
         if response.status_code in [200, 201]:
             file_id = response.json().get('id')
             timestamp = response.headers.get('Date')
+            # Convert timestamp to ISO 8601 format
             timestamp = datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %Z').isoformat()
             return file_id, timestamp
         else:
@@ -51,6 +52,8 @@ def update_json_file(file_id, timestamp):
         else:
             data = {}
         
+        # Ensure the timestamp is in ISO 8601 format
+        timestamp = datetime.fromisoformat(timestamp).isoformat()
         data[file_id] = timestamp
         
         with open(JSON_FILE, 'w') as f:
@@ -86,7 +89,7 @@ def keepalive():
             last_visit_time = datetime.strptime(last_visited, '%a, %d %b %Y %H:%M:%S %Z')
         
         if current_time - last_visit_time >= timedelta(days=VISIT_INTERVAL):
-            url = f"{PIXELDRAIN_VIEW_URL}/{file_id}/info"
+            url = f"{PIXELDRAIN_VIEW_URL}/{file_id}"
             try:
                 response = requests.get(url, auth=get_auth())
                 if response.status_code == 200:
@@ -125,3 +128,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+ 
