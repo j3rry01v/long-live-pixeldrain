@@ -18,21 +18,21 @@ def get_auth():
     return requests.auth.HTTPBasicAuth('', API_KEY)
 
 def upload_file(file_path):
-    """Upload a file to Pixeldrain and return the file ID and timestamp."""
+    """Upload a file to Pixeldrain and return the file ID, timestamp, and file link."""
     try:
         with open(file_path, 'rb') as file:
             response = requests.post(PIXELDRAIN_UPLOAD_URL, files={"file": file}, auth=get_auth())
         
-        print(f"Response Status Code: {response.status_code}")
-        print(f"Response Headers: {response.headers}")
-        print(f"Response Content: {response.content.decode('utf-8')}")
+        # print(f"Response Status Code: {response.status_code}")
+        # print(f"Response Headers: {response.headers}")
+        # print(f"Response Content: {response.content.decode('utf-8')}")
 
         if response.status_code in [200, 201]:
             file_id = response.json().get('id')
             timestamp = response.headers.get('Date')
-            # Convert timestamp to ISO 8601 format
             timestamp = datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %Z').isoformat()
-            return file_id, timestamp
+            file_link = f"{PIXELDRAIN_VIEW_URL}/{file_id}"
+            return file_id, timestamp, file_link
         else:
             raise Exception(f"Upload failed with status code {response.status_code}")
     except Exception as e:
@@ -51,8 +51,6 @@ def update_json_file(file_id, timestamp):
                     data = {}
         else:
             data = {}
-        
-        # Ensure the timestamp is in ISO 8601 format
         timestamp = datetime.fromisoformat(timestamp).isoformat()
         data[file_id] = timestamp
         
@@ -60,7 +58,8 @@ def update_json_file(file_id, timestamp):
             json.dump(data, f, indent=2)
         
         print(f"Updated JSON file: {JSON_FILE}")
-        print(json.dumps(data, indent=2))
+        # print(f"Updated JSON file")
+        # print(json.dumps(data, indent=2)) 
     except Exception as e:
         print(f"Exception occurred while updating JSON file: {str(e)}")
         raise
@@ -116,9 +115,10 @@ def main():
 
     if args.upload:
         try:
-            file_id, timestamp = upload_file(args.upload)
+            file_id, timestamp, file_link = upload_file(args.upload)
             update_json_file(file_id, timestamp)
             print(f"File uploaded successfully. File ID: {file_id}")
+            print(f"File link: {file_link}")
         except Exception as e:
             print(f"Error uploading file: {str(e)}")
     elif args.alive:
@@ -128,5 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
- 
