@@ -83,7 +83,11 @@ def keepalive():
         try:
             last_visit_time = datetime.fromisoformat(last_visited)
         except ValueError:
-            last_visit_time = datetime.strptime(last_visited, '%a, %d %b %Y %H:%M:%S %Z')
+            try:
+                last_visit_time = datetime.strptime(last_visited, '%a, %d %b %Y %H:%M:%S %Z')
+            except ValueError:
+                console.print(f"[bold red]Invalid date format for file ID {file_id}: {last_visited}[/bold red]")
+                continue
         
         if current_time - last_visit_time >= timedelta(days=VISIT_INTERVAL):
             url = f"{PIXELDRAIN_VIEW_URL}/{file_id}"
